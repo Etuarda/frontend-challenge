@@ -36,11 +36,24 @@ Cada critério aponta a frase do RESEARCH.md e a seção do README de onde veio.
 
 | # | Critério | Frase do RESEARCH.md | README |
 |---|---|---|---|
-| 1 | **Ubíqua:** O fluxo de Compra deve enviar o Pedido somente com a Cotação aceita pelo colecionador, e o total do resumo do Carrinho deve ser o total dessa Cotação. | "Decide olhando o total do carrinho. Para ele, esse número é a promessa" | §3 Carrinho: "A cotação da API é a referência para finalizar o pedido" |
+| 1 | **Ubíqua:** O fluxo de Compra deve enviar o Pedido somente com a Cotação aceita pelo colecionador, e todo valor do resumo do Carrinho deve vir de uma Cotação da API, nunca de conta feita na tela. | "Decide olhando o total do carrinho. Para ele, esse número é a promessa" | §3 Carrinho: "A cotação da API é a referência para finalizar o pedido" |
 | 2 | **Orientada a evento:** Quando chegar uma alteração de Preço ou disponibilidade de um NFT que está no Carrinho aberto, o Carrinho deve avisar a alteração, mostrar o valor antigo e o novo do item e atualizar o resumo. | "Ninguém avisa. O carrinho continua mostrando o número antigo." | §3 Carrinho: "Refletir alterações de preço e disponibilidade recebidas enquanto o carrinho estiver aberto"; §7 passos 1–3 |
 | 3 | **Orientada a estado:** Enquanto a Cotação aceita estiver desatualizada, o fluxo de Compra deve manter a confirmação do Pedido bloqueada até o colecionador aceitar a nova Cotação. | "só descobre a mudança na hora de assinar na carteira" | §7 passo 4: "O checkout impede a confirmação com uma cotação desatualizada"; §3 Pagamento: "Mudanças devem exigir nova confirmação do usuário" |
 | 4 | **Feature opcional:** Onde o Carrinho tiver cupom aplicado, o fluxo de Compra deve revalidar o cupom na Cotação nova e, se ele deixou de valer, tratar isso como divergência antes da confirmação. | "Outros pontos que o README pede para revalidar [...]: o cupom deixar de valer" | §3 Pagamento: "Revalidar preço, disponibilidade, cupom e taxas antes de confirmar a compra" |
 | 5 | **Comportamento indesejado:** Se a revalidação da Cotação falhar ou não responder, então o fluxo de Compra não deve enviar o Pedido, deve informar que o total não pôde ser revalidado e deve manter os itens do Carrinho. | "Confirmar compra com valor errado [...] é a falha mais grave do fluxo" | §3 Pagamento: "Preservar os itens em falhas"; §11: "compra confirmada sem resposta da simulação" é eliminatório |
+
+### Respostas às perguntas da sessão 3 (Implement)
+
+1. **Entre a alteração e o aceite:** quando a alteração chega, o fluxo pede uma Cotação nova à
+   API e o resumo mostra essa Cotação como "nova Cotação, aguardando aceite", com o valor antigo
+   ao lado (ex.: subtotal 0,82 ETH, antes 0,75 ETH). Nada é recalculado na tela (§3 Carrinho:
+   "A cotação da API é a referência").
+2. **Aceitar:** aceitar é aceitar a Cotação nova que está na tela. A confirmação revalida de
+   novo de qualquer forma (critério 5 e decisão da ADR).
+3. **Bater com a aceita:** itens (Preço e disponibilidade de cada um), cupom, taxa e total,
+   todos iguais. Só o total igual não basta.
+4. **Item esgotado:** enquanto houver item esgotado, não há aceite nem confirmação; o Carrinho
+   pede para remover o item. Remover item é de outra spec (README §3 Carrinho), fora deste escopo.
 
 ## Cenários (BDD)
 
