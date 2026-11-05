@@ -1,48 +1,40 @@
-# ADR-0001: Revalidar a Cotação e exigir novo aceite antes de confirmar o Pedido
+# ADR-0001: Avisar alterações no Carrinho aberto e revalidar a Cotação antes de confirmar o Pedido
 
 ## Status
 
-Proposta
+Aceita
 
 ## Contexto
 
 O colecionador monta um Carrinho com NFTs de edição limitada e volta ao catálogo por 10 a 20
-minutos antes de pagar. Nesse tempo, o Preço no Catálogo pode subir ou cair, a edição pode
-esgotar, o cupom pode deixar de valer e a taxa pode mudar. Hoje ninguém avisa: o Carrinho
-continua mostrando o total antigo, e ele só descobre a diferença na carteira, no Recibo ou
-nunca ("Eu vi 0,75 ETH no carrinho. Por que a carteira está pedindo 0,82?"). Para ele, o total
-do Carrinho é a promessa. Confirmar uma compra com valor errado, ou sem resposta da simulação,
-é eliminatório (README §11).
+minutos antes de pagar. Nesse tempo o Preço pode subir ou cair, a edição pode esgotar e o cupom
+pode deixar de valer. Hoje ninguém avisa: o Carrinho mostra o total antigo, e ele só descobre na
+carteira, no Recibo ou nunca ("Eu vi 0,75 ETH no carrinho. Por que a carteira está pedindo
+0,82?"). Para ele, o total do Carrinho é a promessa. O README exige refletir as alterações com o
+Carrinho aberto (§3, §7) e trata compra confirmada sem resposta da simulação como eliminatória
+(§11).
 
 ## Decisão
 
-Antes de confirmar, o fluxo de Compra pede uma Cotação nova e compara com a última que o
-colecionador aceitou. Se algo mudou (Preço, disponibilidade, cupom, taxa ou total), o Pedido não
-é enviado: mostramos o que mudou, item por item, e o colecionador precisa aceitar a nova Cotação
-de forma explícita. Sem Cotação nova válida, não há confirmação.
+Com o Carrinho aberto, cada alteração de Preço ou disponibilidade é mostrada na hora (antigo →
+novo), o resumo é atualizado e a Cotação aceita passa a ser desatualizada. Na confirmação, o
+fluxo pede uma Cotação nova e só envia o Pedido se ela bater com a aceita; sem Cotação válida,
+não há Pedido.
 
 ## Alternativas consideradas
 
-- **Deixar o colecionador conferir à mão (como hoje):** descartada. É manual, chega atrasada e
-  não protege quem não sabe que precisa conferir.
-- **Atualizar o Carrinho em tempo real enquanto ele navega no catálogo:** adiada. Custa mais e
-  não fecha o buraco do último segundo, porque a checagem no momento de confirmar continuaria
-  sendo necessária.
-- **Congelar o Preço no momento em que o item entra no Carrinho:** descartada. Depende de o
-  marketplace garantir o preço, e nada no contexto da API indica que isso existe.
+- **Só revalidar na confirmação, sem aviso no Carrinho:** descartada. É a proposta da sessão de
+  Plan, mas deixa o colecionador olhando o número antigo, que é a fala do RESEARCH, e não cumpre
+  o §7 do README.
+- **Congelar o Preço quando o item entra no Carrinho:** descartada. Nada no contexto indica que o
+  marketplace garante preço.
 
 ## Consequências
 
 **Positivas:**
-- O colecionador nunca paga um total que não aceitou. O Preço da Compra passa a ser sempre o da
-  Cotação aceita.
-- Edição esgotada aparece antes da carteira, não depois.
-- Cobre o caso eliminatório: sem resposta da Cotação, não há confirmação.
+- O colecionador nunca envia um Pedido com total que não aceitou, e vê a mudança antes da carteira.
 
 **Negativas / trade-offs:**
-- Mais um passo e mais uma espera antes de pagar, mesmo quando nada mudou.
-- Mais chamadas de Cotação à API.
-- O colecionador continua sem aviso *enquanto* navega. Ele só fica sabendo ao voltar ao Carrinho
-  ou ao confirmar.
-- Uma mudança entre o novo aceite e a confirmação ainda pode acontecer. Nesse caso dependemos de
-  a API recusar o Pedido com Cotação desatualizada, e o fluxo volta para a comparação.
+- Mais um passo antes de pagar quando algo mudou, e mais chamadas de Cotação à API.
+- O Carrinho passa a depender de receber alterações em tempo real; se a conexão cair, só a
+  revalidação na confirmação protege.

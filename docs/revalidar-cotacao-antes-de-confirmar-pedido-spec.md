@@ -1,82 +1,75 @@
 # Revalidação da Cotação antes de confirmar o Pedido — spec
 
-**Bounded context (semana 5):** Compra
+**Bounded context (semana 5):** Compra (`src/compra/`)
 **ADR relacionada:** [`docs/adr/0001-revalidar-cotacao-antes-de-confirmar-pedido.md`](adr/0001-revalidar-cotacao-antes-de-confirmar-pedido.md)
 **Escala:** M — muda o contrato entre o total mostrado ao colecionador e o valor cobrado
 
 ## Contexto
 
-O colecionador coloca no Carrinho um NFT de 0,45 ETH e outro de 0,30 ETH (total de 0,75 ETH +
-taxa) e volta ao catálogo por 10 a 20 minutos. Enquanto isso, o primeiro sobe para 0,52 ETH, ou
-a edição esgota, e ninguém avisa. O Carrinho continua mostrando o número antigo, e ele só
-descobre na carteira, no Recibo ou nunca: *"Eu vi 0,75 ETH no carrinho. Por que a carteira está
-pedindo 0,82? Ninguém me avisou que mudou."* O que mais dói, em ordem: o preço subir, a edição
-esgotar e o preço cair. Conferir à mão não resolve, porque a mudança pode vir no último segundo.
+O colecionador coloca no Carrinho um NFT de 0,45 ETH e outro de 0,30 ETH (subtotal de 0,75 ETH)
+e volta ao catálogo por 10 a 20 minutos. Enquanto isso, o primeiro sobe para 0,52 ETH, ou a
+edição esgota, e ninguém avisa. O Carrinho continua mostrando o número antigo, e ele só descobre
+na carteira, no Recibo ou nunca: *"Eu vi 0,75 ETH no carrinho. Por que a carteira está pedindo
+0,82? Ninguém me avisou que mudou."* O que mais dói, em ordem: o preço subir, a edição esgotar
+e o preço cair. Conferir à mão não resolve, porque a mudança pode vir no último segundo.
 *(Papel, fala e números são reconstrução. Ver RESEARCH.md.)*
 
 ## Decisão
 
-Antes de enviar o Pedido, o fluxo de Compra pede uma Cotação nova e compara com a última que o
-colecionador aceitou. Se o Preço, a disponibilidade, o cupom, a taxa ou o total mudaram, o
-Pedido não é enviado. O Carrinho mostra o que mudou, item por item, com o valor antigo e o novo,
-e só segue depois que o colecionador aceita a nova Cotação. Sem Cotação nova válida, não há
-confirmação.
+A Compra tem duas defesas. **Com o Carrinho aberto**, cada alteração de Preço ou
+disponibilidade que chega é mostrada na hora, item por item (valor antigo → novo), o resumo é
+atualizado e a Cotação aceita passa a valer como desatualizada. **Na confirmação**, o fluxo pede
+uma Cotação nova à API e só envia o Pedido se ela bater com a Cotação aceita; se não bater, ou se
+não houver resposta, o Pedido não é enviado e o colecionador precisa aceitar a nova Cotação.
 
 ## Fora de escopo
 
-- Avisar a mudança em tempo real enquanto o colecionador navega pelo catálogo.
 - Reservar a edição ou congelar o Preço quando o item entra no Carrinho.
-- Medir com que frequência o Preço ou a disponibilidade mudam durante uma sessão, e quanto da
-  desistência vem disso. Continua sendo pergunta aberta do RESEARCH.md.
+- Avisar alterações fora do Carrinho (no catálogo ou no detalhe do NFT).
+- Pagamento, carteira, idempotência e Recibo: o Pedido é só enviado ou não enviado aqui.
+- Medir com que frequência o Preço ou a disponibilidade mudam (pergunta aberta do RESEARCH.md).
 - Sugerir outra peça quando a edição esgota.
-- Mudar o Recibo. Ele continua sendo o snapshot do Pedido confirmado.
 
 ## Critérios (EARS)
 
-1. **Ubíqua:** O fluxo de Compra deve enviar o Pedido somente com a última Cotação aceita pelo
-   colecionador, e o total mostrado no Carrinho deve ser o total dessa Cotação.
-2. **Orientada a evento:** Quando o colecionador pedir para confirmar a compra, o fluxo de Compra
-   deve pedir uma Cotação nova e compará-la com a última Cotação aceita antes de enviar o
-   Pedido.
-3. **Orientada a estado:** Enquanto a Cotação nova divergir da última Cotação aceita (Preço,
-   disponibilidade, cupom, taxa ou total), o Carrinho deve mostrar o valor antigo e o novo de
-   cada item que mudou e manter a confirmação bloqueada até o colecionador aceitar a nova
-   Cotação.
-4. **Feature opcional:** Onde o Carrinho tiver cupom aplicado, o fluxo de Compra deve
-   revalidar o cupom na Cotação nova e, se ele deixou de valer, mostrar isso como divergência
-   antes de qualquer confirmação.
-5. **Comportamento indesejado:** Se a Cotação nova não responder, ou se a API recusar o Pedido
-   por Cotação desatualizada, então o fluxo de Compra não deve confirmar o Pedido e deve
-   informar ao colecionador que o total não pôde ser revalidado, sem perder os itens do
-   Carrinho.
+Cada critério aponta a frase do RESEARCH.md e a seção do README de onde veio.
+
+| # | Critério | Frase do RESEARCH.md | README |
+|---|---|---|---|
+| 1 | **Ubíqua:** O fluxo de Compra deve enviar o Pedido somente com a Cotação aceita pelo colecionador, e o total do resumo do Carrinho deve ser o total dessa Cotação. | "Decide olhando o total do carrinho. Para ele, esse número é a promessa" | §3 Carrinho: "A cotação da API é a referência para finalizar o pedido" |
+| 2 | **Orientada a evento:** Quando chegar uma alteração de Preço ou disponibilidade de um NFT que está no Carrinho aberto, o Carrinho deve avisar a alteração, mostrar o valor antigo e o novo do item e atualizar o resumo. | "Ninguém avisa. O carrinho continua mostrando o número antigo." | §3 Carrinho: "Refletir alterações de preço e disponibilidade recebidas enquanto o carrinho estiver aberto"; §7 passos 1–3 |
+| 3 | **Orientada a estado:** Enquanto a Cotação aceita estiver desatualizada, o fluxo de Compra deve manter a confirmação do Pedido bloqueada até o colecionador aceitar a nova Cotação. | "só descobre a mudança na hora de assinar na carteira" | §7 passo 4: "O checkout impede a confirmação com uma cotação desatualizada"; §3 Pagamento: "Mudanças devem exigir nova confirmação do usuário" |
+| 4 | **Feature opcional:** Onde o Carrinho tiver cupom aplicado, o fluxo de Compra deve revalidar o cupom na Cotação nova e, se ele deixou de valer, tratar isso como divergência antes da confirmação. | "Outros pontos que o README pede para revalidar [...]: o cupom deixar de valer" | §3 Pagamento: "Revalidar preço, disponibilidade, cupom e taxas antes de confirmar a compra" |
+| 5 | **Comportamento indesejado:** Se a revalidação da Cotação falhar ou não responder, então o fluxo de Compra não deve enviar o Pedido, deve informar que o total não pôde ser revalidado e deve manter os itens do Carrinho. | "Confirmar compra com valor errado [...] é a falha mais grave do fluxo" | §3 Pagamento: "Preservar os itens em falhas"; §11: "compra confirmada sem resposta da simulação" é eliminatório |
 
 ## Cenários (BDD)
 
 ```gherkin
-Cenário: preço sobe enquanto o colecionador navega
-Dado um Carrinho com Cotação aceita de 0,75 ETH + taxa, em que um NFT custava 0,45 ETH
-Quando o colecionador pede para confirmar e a Cotação nova traz esse NFT a 0,52 ETH
-Então o Pedido não é enviado e o Carrinho mostra "0,45 ETH → 0,52 ETH" com o novo total para aceitar
+Cenário: preço sobe com o Carrinho aberto
+Dado um Carrinho com Cotação aceita de subtotal 0,75 ETH, em que o NFT "Aurora #1" custa 0,45 ETH
+Quando chega a alteração do Preço de "Aurora #1" para 0,52 ETH
+Então o Carrinho mostra "0,45 ETH → 0,52 ETH", o subtotal passa a 0,82 ETH e a confirmação fica bloqueada até aceitar a nova Cotação
 ```
 
 ```gherkin
 Cenário: edição esgota antes da confirmação
-Dado um Carrinho com Cotação aceita contendo dois NFTs
-Quando o colecionador pede para confirmar e a Cotação nova indica que a edição de um deles esgotou
-Então o Pedido não é enviado e o Carrinho mostra qual item esgotou antes de abrir a carteira
+Dado um Carrinho com Cotação aceita contendo "Aurora #1" e "Maré #7"
+Quando chega a alteração de que a edição de "Maré #7" esgotou
+Então o Carrinho mostra "Maré #7" como esgotado, a confirmação fica bloqueada e nenhum Pedido é enviado
 ```
 
 ```gherkin
-Cenário: Cotação nova não responde
-Dado um Carrinho com Cotação aceita
-Quando o colecionador pede para confirmar e a Cotação nova não responde
-Então nenhum Pedido é confirmado e o colecionador vê que o total não pôde ser revalidado, com os itens mantidos
+Cenário: a revalidação da Cotação falha na confirmação
+Dado um Carrinho com Cotação aceita de subtotal 0,75 ETH
+Quando o colecionador confirma e a API de Cotação responde com erro
+Então nenhum Pedido é enviado, o colecionador vê "Não foi possível revalidar o total" e os 2 itens continuam no Carrinho
 ```
 
 ## Como eu vou saber que funcionou
 
-Os 3 cenários acima rodam como testes (runner BDD da semana 8) e passam. Além disso, nenhum
-teste consegue chegar a um Pedido confirmado cujo total seja diferente da última Cotação aceita.
+`npx playwright test` roda os 3 cenários de cima, com a API e as alterações simuladas na camada
+de rede, e todos passam. Nenhum teste chega a um Pedido enviado com total diferente da Cotação
+aceita.
 
 ## Linguagem ubíqua usada aqui
 
